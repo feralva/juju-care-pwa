@@ -1,8 +1,8 @@
-"use client";  // Make sure to add this at the top of the file
+"use client";  // Add this at the top
 
 import { useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set, onValue } from "firebase/database";
+import { getDatabase, ref, get, set, push, onValue } from "firebase/database";
 
 // Firebase config (replace with your actual credentials)
 const firebaseConfig = {
@@ -21,18 +21,30 @@ const db = getDatabase(app);
 export default function BabyStatusApp() {
   const [status, setStatus] = useState("Awake");
   const [lastFed, setLastFed] = useState<string | null>(null);
+  const [feedingHistory, setFeedingHistory] = useState<string[]>([]);
+  const [feedingInterval, setFeedingInterval] = useState<number>(3); // Default to 3 hours
 
   useEffect(() => {
     const statusRef = ref(db, "baby/status");
-    const lastFedRef = ref(db, "baby/lastFed");
+    const feedingHistoryRef = ref(db, "baby/feedingHistory");
+    const feedingIntervalRef = ref(db, "baby/feedingInterval");
 
     // Get initial values
     get(statusRef).then((snapshot) => setStatus(snapshot.val() || "Awake"));
-    get(lastFedRef).then((snapshot) => setLastFed(snapshot.val() || null));
+    get(feedingHistoryRef).then((snapshot) => {
+      // Ensure the feeding history is an array
+      const history = snapshot.val();
+      setFeedingHistory(Array.isArray(history) ? history : []);
+    });
+    get(feedingIntervalRef).then((snapshot) => setFeedingInterval(snapshot.val() || 3));
 
     // Listen for changes in real-time
     onValue(statusRef, (snapshot) => setStatus(snapshot.val()));
-    onValue(lastFedRef, (snapshot) => setLastFed(snapshot.val()));
+    onValue(feedingHistoryRef, (snapshot) => {
+      const history = snapshot.val();
+      setFeedingHistory(Array.isArray(history) ? history : []);
+    });
+    onValue(feedingIntervalRef, (snapshot) => setFeedingInterval(snapshot.val()));
 
     // Cleanup on component unmount
     return () => {
@@ -46,9 +58,21 @@ export default function BabyStatusApp() {
   };
 
   const logFeeding = () => {
+    const feedingHistoryRef = ref(db, "baby/feedingHistory");
+    const feedingTime = new Date().toLocaleTimeString();
+
+    // Push the new feeding time to the feedingHistory array
+    push(feedingHistoryRef, feedingTime);
+
+    // Also update the last feeding time
     const lastFedRef = ref(db, "baby/lastFed");
-    const feedTime = new Date().toLocaleTimeString();
-    set(lastFedRef, feedTime);
+    set(lastFedRef, feedingTime);
+  };
+
+  const updateFeedingInterval = (newInterval: number) => {
+    const feedingIntervalRef = ref(db, "baby/feedingInterval");
+    set(feedingIntervalRef, newInterval);
+    setFeedingInterval(newInterval);
   };
 
   return (
@@ -86,6 +110,31 @@ export default function BabyStatusApp() {
           🍼 Log Feeding
         </button>
         {lastFed && <p className="mt-4 text-lg">Last Fed: {lastFed}</p>}
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-xl mb-2">Feeding History</h2>
+        <ul className="list-disc pl-6">
+          {feedingHistory.length > 0 ? (
+            feedingHistory.map((time, index) => (
+              <li key={index}>{time}</li>
+            ))
+          ) : (
+            <p>No feeding history available.</p>
+          )}
+        </ul>
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-xl mb-2">Set Feeding Interval (hours)</h2>
+        <input
+          type="number"
+          value={feedingInterval}
+          onChange={(e) => updateFeedingInterval(Number(e.target.value))}
+          min={1}
+          max={12}
+          className="text-lg border-2 border-gray-300 rounded-md px-4 py-2"
+        />
       </div>
     </div>
   );
