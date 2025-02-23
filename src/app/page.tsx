@@ -23,32 +23,35 @@ export default function BabyStatusApp() {
   const [lastFed, setLastFed] = useState<string | null>(null);
   const [feedingHistory, setFeedingHistory] = useState<string[]>([]);
   const [feedingInterval, setFeedingInterval] = useState<number>(3); // Default to 3 hours
+  const [isLoading, setIsLoading] = useState(true); // Loading state
 
   useEffect(() => {
     const statusRef = ref(db, "baby/status");
     const feedingHistoryRef = ref(db, "baby/feedingHistory");
     const feedingIntervalRef = ref(db, "baby/feedingInterval");
-
-    // Get initial values
-    get(statusRef).then((snapshot) => setStatus(snapshot.val() || "Awake"));
-    get(feedingHistoryRef).then((snapshot) => {
-      // Ensure the feeding history is an array
-      const history = snapshot.val();
-      setFeedingHistory(Array.isArray(history) ? history : []);
-    });
-    get(feedingIntervalRef).then((snapshot) => setFeedingInterval(snapshot.val() || 3));
-
-    // Listen for changes in real-time
+  
+    // Get initial values from Firebase
+    Promise.all([get(statusRef), get(feedingHistoryRef), get(feedingIntervalRef)])
+      .then(([statusSnapshot, feedingHistorySnapshot, feedingIntervalSnapshot]) => {
+        setStatus(statusSnapshot.val() || "Awake");
+  
+        const feedingHistory = feedingHistorySnapshot.val();
+        setFeedingHistory(feedingHistory ? Object.values(feedingHistory) : []); 
+  
+        setFeedingInterval(feedingIntervalSnapshot.val() || 3);
+        setIsLoading(false); 
+      });
+  
+    // Listen for real-time updates
     onValue(statusRef, (snapshot) => setStatus(snapshot.val()));
     onValue(feedingHistoryRef, (snapshot) => {
       const history = snapshot.val();
-      setFeedingHistory(Array.isArray(history) ? history : []);
+      setFeedingHistory(history ? Object.values(history) : []); 
     });
     onValue(feedingIntervalRef, (snapshot) => setFeedingInterval(snapshot.val()));
-
-    // Cleanup on component unmount
+  
     return () => {
-      // Remove listeners when component unmounts
+      // Cleanup listeners on unmount
     };
   }, []);
 
@@ -59,43 +62,47 @@ export default function BabyStatusApp() {
 
   const logFeeding = () => {
     const feedingHistoryRef = ref(db, "baby/feedingHistory");
-    const feedingTime = new Date().toLocaleTimeString();
+    const feedingTime = new Date().toISOString(); // Use ISO string
+    
+    push(feedingHistoryRef, feedingTime); // Store feeding time
 
-    // Push the new feeding time to the feedingHistory array
-    push(feedingHistoryRef, feedingTime);
-
-    // Also update the last feeding time
     const lastFedRef = ref(db, "baby/lastFed");
-    set(lastFedRef, feedingTime);
+    set(lastFedRef, feedingTime); // Update last fed time
   };
 
+  // Function to update the feeding interval
   const updateFeedingInterval = (newInterval: number) => {
     const feedingIntervalRef = ref(db, "baby/feedingInterval");
-    set(feedingIntervalRef, newInterval);
-    setFeedingInterval(newInterval);
+    set(feedingIntervalRef, newInterval); // Update Firebase
+    setFeedingInterval(newInterval); // Update local state
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
       <h1 className="text-3xl font-bold text-center mb-4">Baby Status</h1>
       <p className="text-xl text-center mb-6">Current Status: <strong>{status}</strong></p>
-      
-      {/* Display image based on status */}
-      {status === "Awake" ? (
-        <img src="/images/awake.png" alt="Baby is awake" className="w-48 h-48 object-contain mb-4" />
+
+      {isLoading ? (
+        <div className="flex justify-center items-center mt-8">
+          <div className="animate-spin rounded-full border-t-4 border-blue-500 h-16 w-16 border-b-4 border-transparent"></div>
+        </div>
       ) : (
-        <img src="/images/sleeping.png" alt="Baby is sleeping" className="w-48 h-48 object-contain mb-4" />
+        status === "Awake" ? (
+          <img src="/images/awake.png" alt="Baby is awake" className="w-48 h-48 object-contain mb-4" />
+        ) : (
+          <img src="/images/sleeping.png" alt="Baby is sleeping" className="w-48 h-48 object-contain mb-4" />
+        )
       )}
 
       <div className="flex gap-4 mb-6">
-        <button 
-          onClick={() => updateStatus("Sleeping")} 
+        <button
+          onClick={() => updateStatus("Sleeping")}
           className="bg-blue-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-blue-600 focus:outline-none"
         >
           😴 Sleeping
         </button>
-        <button 
-          onClick={() => updateStatus("Awake")} 
+        <button
+          onClick={() => updateStatus("Awake")}
           className="bg-yellow-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-yellow-600 focus:outline-none"
         >
           ☀️ Awake
@@ -103,13 +110,13 @@ export default function BabyStatusApp() {
       </div>
 
       <div>
-        <button 
-          onClick={logFeeding} 
+        <button
+          onClick={logFeeding}
           className="bg-green-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-green-600 focus:outline-none"
         >
           🍼 Log Feeding
         </button>
-        {lastFed && <p className="mt-4 text-lg">Last Fed: {lastFed}</p>}
+        {lastFed && <p className="mt-4 text-lg">Last Fed: {new Date(lastFed).toLocaleString()}</p>}
       </div>
 
       <div className="mt-6">
@@ -117,7 +124,7 @@ export default function BabyStatusApp() {
         <ul className="list-disc pl-6">
           {feedingHistory.length > 0 ? (
             feedingHistory.map((time, index) => (
-              <li key={index}>{time}</li>
+              <li key={index}>{time}</li>  // Properly displaying date
             ))
           ) : (
             <p>No feeding history available.</p>
