@@ -77,6 +77,14 @@ export default function BabyStatusApp() {
     setFeedingInterval(newInterval); // Update local state
   };
 
+  // Functions for increment and decrement
+  const incrementInterval = () => updateFeedingInterval(feedingInterval + 1);
+  const decrementInterval = () => {
+    if (feedingInterval > 1) {
+      updateFeedingInterval(feedingInterval - 1);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
       <h1 className="text-3xl font-bold text-center mb-4">Baby Status</h1>
@@ -134,14 +142,28 @@ export default function BabyStatusApp() {
 
       <div className="mt-6">
         <h2 className="text-xl mb-2">Set Feeding Interval (hours)</h2>
-        <input
-          type="number"
-          value={feedingInterval}
-          onChange={(e) => updateFeedingInterval(Number(e.target.value))}
-          min={1}
-          max={12}
-          className="text-lg border-2 border-gray-300 rounded-md px-4 py-2"
-        />
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={decrementInterval}
+            className="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600 focus:outline-none"
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={feedingInterval}
+            onChange={(e) => updateFeedingInterval(Number(e.target.value))}
+            min={1}
+            max={12}
+            className="text-lg border-2 border-gray-300 px-4 py-2 text-center w-24"
+          />
+          <button
+            onClick={incrementInterval}
+            className="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600 focus:outline-none"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
   );
