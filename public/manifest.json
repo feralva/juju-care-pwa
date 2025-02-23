@@ -1,6 +1,6 @@
 {
-    "name": "Baby Care",
-    "short_name": "Baby Care",
+    "name": "Juju Care",
+    "short_name": "Juju Care",
     "description": "Track your baby’s care routines.",
     "start_url": "/",
     "display": "standalone",
