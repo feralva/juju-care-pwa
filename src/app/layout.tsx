@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Juju App",
   description: "App para el control de la alimentación de tu bebé",
+  icons: {
+    icon: "/favicon.ico", // ✅ Ensures Next.js loads the favicon
+  },
+  manifest: "/manifest.json", // ✅ Link manifest
 };
 
 export default function RootLayout({
