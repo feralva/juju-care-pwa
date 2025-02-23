@@ -38,27 +38,25 @@ export default function BabyStatusApp() {
     const statusStartTimeRef = ref(db, "baby/statusStartTime");
 
     // Get initial values from Firebase
-    Promise.all([
+    Promise.all([ 
       get(statusRef),
       get(feedingHistoryRef),
       get(feedingIntervalRef),
       get(lastFedRef),
       get(statusStartTimeRef),
     ])
-      .then(([statusSnapshot, feedingHistorySnapshot, feedingIntervalSnapshot, lastFedSnapshot, statusStartTimeSnapshot]) => {
-        setStatus(statusSnapshot.val() || "Awake");
-        setStatusStartTime(statusStartTimeSnapshot.val() || null); // Set initial start time if available
+    .then(([statusSnapshot, feedingHistorySnapshot, feedingIntervalSnapshot, lastFedSnapshot, statusStartTimeSnapshot]) => {
+      setStatus(statusSnapshot.val() || "Awake");
+      setStatusStartTime(statusStartTimeSnapshot.val() || null); // Set initial start time if available
 
-        // Convert Firebase object to an array for feeding history
-        const feedingHistory = feedingHistorySnapshot.val();
-        setFeedingHistory(
-          feedingHistory ? Object.values(feedingHistory) : [] // Convert object to array
-        );
+      // Convert Firebase object to an array for feeding history
+      const feedingHistory = feedingHistorySnapshot.val();
+      setFeedingHistory(feedingHistory ? Object.values(feedingHistory) : []); // Convert object to array
 
-        setFeedingInterval(feedingIntervalSnapshot.val() || 3);
-        setLastFed(lastFedSnapshot.val() || null);
-        setIsLoading(false); // Set loading to false once data is fetched
-      });
+      setFeedingInterval(feedingIntervalSnapshot.val() || 3);
+      setLastFed(lastFedSnapshot.val() || null);
+      setIsLoading(false); // Set loading to false once data is fetched
+    });
 
     // Listen for real-time updates for status and feeding history
     onValue(statusRef, (snapshot) => setStatus(snapshot.val()));
@@ -112,8 +110,8 @@ export default function BabyStatusApp() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
-      <h1 className="text-3xl font-bold text-center mb-4">Juju News</h1>
-      <p className="text-xl text-center mb-2">Estado: <strong>{status == 'Awake' ? 'Despierto': 'Dormido'}</strong></p>
+      <h1 className="text-3xl font-bold text-center mb-4">Juju Noticias</h1>
+      <p className="text-xl text-center mb-2">Estado: <strong>{status === 'Awake' ? 'Despierto' : 'Dormido'}</strong></p>
 
       {/* Show spinner while loading */}
       {isLoading ? (
@@ -133,14 +131,16 @@ export default function BabyStatusApp() {
         <button
           onClick={() => updateStatus("Sleeping")}
           className="bg-blue-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-blue-600 focus:outline-none"
+          style={{ fontSize: '1.5rem' }}
         >
-          😴 Sleeping
+         😴 
         </button>
         <button
           onClick={() => updateStatus("Awake")}
           className="bg-yellow-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-yellow-600 focus:outline-none"
+          style={{ fontSize: '1.5rem' }}
         >
-          ☀️ Awake
+          😁
         </button>
       </div>
 
@@ -149,21 +149,21 @@ export default function BabyStatusApp() {
           onClick={logFeeding}
           className="bg-green-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-green-600 focus:outline-none"
         >
-          🍼 Log Feeding
+          🍼 Cargar Comida
         </button>
       </div>
 
       {lastFed && <p className="mt-4 text-sm" style={{ color: 'grey' }}>Ultima Comida: {lastFed}</p>}
 
       {statusStartTime && (
-        <p className="mt-0 text-sm" style={{ color: 'grey' }}>{status == 'Awake' ? 'Despierto': 'Dormido'} desde: {statusStartTime}</p>
+        <p className="mt-0 text-sm" style={{ color: 'grey' }}>{status === 'Awake' ? 'Despierto' : 'Dormido'} desde: {statusStartTime}</p>
       )}
 
       {/* Material UI Tabs for Feeding History and Configuration */}
       <Box sx={{ width: "100%", maxWidth: 500, mt: 1 }}>
         <Tabs value={value} onChange={handleTabChange} centered>
-          <Tab label="Feeding History" />
-          <Tab label="Configuration" />
+          <Tab label="Comidas Historial" />
+          <Tab label="Configuracion" />
         </Tabs>
 
         <Box sx={{ padding: 2 }}>
@@ -171,51 +171,51 @@ export default function BabyStatusApp() {
             <div>
               <ul className="list-disc pl-6">
                 {feedingHistory.length > 0 ? (
-                  feedingHistory.slice(0,5).map((time, index) => (
-                    <li key={index}>{time}</li>
+                  feedingHistory.slice(-5).reverse().map((feedingTime, index) => (
+                  <li key={index} className="text-sm">{feedingTime}</li>
                   ))
                 ) : (
-                  <p>No hay historial</p>
+                  <p>No hay Comidas guardadas.</p>
                 )}
               </ul>
             </div>
           )}
+
           {value === 1 && (
-            <div>
-                <p className="text-lg mb-2 text-center">Intervalo comidas (horas)</p>
-                <div className="flex items-center justify-center gap-4">
-                <IconButton
-                  onClick={() => updateFeedingInterval(Math.max(feedingInterval - 1, 1))}
-                  aria-label="Decrease feeding interval"
-                  sx={{
-                    backgroundColor: 'red',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'darkred',
-                    },
-                    padding: '4px', // Smaller padding
-                    fontSize: '20px', // Smaller icon size
-                  }}
-                >
-                  <RemoveIcon />
-                </IconButton>
-                  <span className="text-lg">{feedingInterval} hours</span>
-                  <IconButton
-                    onClick={() => updateFeedingInterval(feedingInterval + 1)}
-                    aria-label="Increase feeding interval"
-                    sx={{
-                      backgroundColor: 'green',
-                      color: 'white',
-                      '&:hover': {
-                        backgroundColor: 'darkgreen',
-                      },
-                      padding: '4px', // Smaller padding
-                      fontSize: '20px', // Smaller icon size
-                    }}
-                    >
-                    <AddIcon />
-                  </IconButton>
-                </div>
+            <div className="flex flex-col items-center">
+              <label>Intervalo comida (horas):</label>
+              <div className="flex items-center gap-2 mt-1">
+              <IconButton
+                onClick={() => updateFeedingInterval(feedingInterval - 1)}
+                disabled={feedingInterval <= 1}
+                sx={{
+                backgroundColor: 'red',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'darkred',
+                },
+                padding: '4px', // Smaller padding
+                fontSize: '20px', // Smaller icon size
+                }}
+              >
+                <RemoveIcon />
+              </IconButton>
+              <span>{feedingInterval} horas</span>
+              <IconButton
+                onClick={() => updateFeedingInterval(feedingInterval + 1)}
+                sx={{
+                backgroundColor: 'green',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'darkgreen',
+                },
+                padding: '4px', // Smaller padding
+                fontSize: '20px', // Smaller icon size
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+              </div>
             </div>
           )}
         </Box>
