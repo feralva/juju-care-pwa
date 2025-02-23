@@ -112,8 +112,8 @@ export default function BabyStatusApp() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
-      <h1 className="text-3xl font-bold text-center mb-4">Juju Estado</h1>
-      <p className="text-xl text-center mb-6">Estado: <strong>{status == 'Awake' ? 'Despierto': 'Dormido'}</strong></p>
+      <h1 className="text-3xl font-bold text-center mb-4">Juju News</h1>
+      <p className="text-xl text-center mb-2">Estado: <strong>{status == 'Awake' ? 'Despierto': 'Dormido'}</strong></p>
 
       {/* Show spinner while loading */}
       {isLoading ? (
