@@ -29,6 +29,10 @@ export default function BabyStatusApp() {
   const [isLoading, setIsLoading] = useState(true); // Loading state
   const [value, setValue] = useState(0); // State for Tabs
   const [statusStartTime, setStatusStartTime] = useState<string | null>(null); // New state for tracking the start time of status
+  const [sleepStart, setSleepStart] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sleepHistory, setSleepHistory] = useState<any[]>([]);
+  const [totalSleepToday, setTotalSleepToday] = useState(0);
 
   useEffect(() => {
     const statusRef = ref(db, "baby/status");
@@ -36,6 +40,7 @@ export default function BabyStatusApp() {
     const feedingIntervalRef = ref(db, "baby/feedingInterval");
     const lastFedRef = ref(db, "baby/lastFed");
     const statusStartTimeRef = ref(db, "baby/statusStartTime");
+    const sleepHistoryRef = ref(db, "baby/sleepHistory");
 
     // Get initial values from Firebase
     Promise.all([ 
@@ -44,8 +49,9 @@ export default function BabyStatusApp() {
       get(feedingIntervalRef),
       get(lastFedRef),
       get(statusStartTimeRef),
+      get(sleepHistoryRef),
     ])
-    .then(([statusSnapshot, feedingHistorySnapshot, feedingIntervalSnapshot, lastFedSnapshot, statusStartTimeSnapshot]) => {
+    .then(([statusSnapshot, feedingHistorySnapshot, feedingIntervalSnapshot, lastFedSnapshot, statusStartTimeSnapshot, sleepHistorySnapshot]) => {
       setStatus(statusSnapshot.val() || "Awake");
       setStatusStartTime(statusStartTimeSnapshot.val() || null); // Set initial start time if available
 
@@ -56,6 +62,8 @@ export default function BabyStatusApp() {
       setFeedingInterval(feedingIntervalSnapshot.val() || 3);
       setLastFed(lastFedSnapshot.val() || null);
       setIsLoading(false); // Set loading to false once data is fetched
+      const sleepData = sleepHistorySnapshot.val();
+      setSleepHistory(sleepData ? Object.values(sleepData) : []);
     });
 
     // Listen for real-time updates for status and feeding history
@@ -67,12 +75,38 @@ export default function BabyStatusApp() {
     onValue(feedingIntervalRef, (snapshot) => setFeedingInterval(snapshot.val()));
     onValue(lastFedRef, (snapshot) => setLastFed(snapshot.val()));
     onValue(statusStartTimeRef, (snapshot) => setStatusStartTime(snapshot.val()));
+    onValue(sleepHistoryRef, (snapshot) => {
+      const history = snapshot.val();
+      setSleepHistory(history ? Object.values(history) : []);
+      calculateTotalSleep(history || []);
+    });
 
     // Cleanup listeners on unmount
     return () => {
       // Remove listeners when the component unmounts
     };
   }, []);
+
+  const calculateTotalSleep = (sleepData: any[]) => {
+    const today = new Date().toISOString().split("T")[0]; 
+    const sleepArray = sleepData ? Object.values(sleepData) : [];
+
+    const total = sleepArray.reduce((acc, entry) => {
+      if (entry.start.startsWith(today)) {
+        const start = new Date(entry.start).getTime();
+        const end = new Date(entry.end).getTime();
+        return acc + (end - start);
+      }
+      return acc;
+    }, 0);
+
+    setTotalSleepToday(total / (1000 * 60 * 60)); 
+  };
+
+  const logSleep = (start: string, end: string) => {
+    const sleepHistoryRef = ref(db, "baby/sleepHistory");
+    push(sleepHistoryRef, { start, end });
+  };
 
   const updateStatus = (newStatus: string) => {
     const statusRef = ref(db, "baby/status");
@@ -83,6 +117,15 @@ export default function BabyStatusApp() {
     set(statusRef, newStatus);
     set(statusStartTimeRef, currentTime); // Save the timestamp of when the status changed
     setStatusStartTime(currentTime); // Update local state for tracking start time
+
+
+    if (newStatus === "Sleeping") {
+      const startTime = new Date().toISOString();
+      setSleepStart(startTime);
+    } else if (newStatus === "Awake" && sleepStart) {
+      logSleep(sleepStart, new Date().toISOString());
+      setSleepStart(null);
+    }
   };
 
   const logFeeding = () => {
@@ -159,10 +202,13 @@ export default function BabyStatusApp() {
         <p className="mt-0 text-sm" style={{ color: 'grey' }}>{status === 'Awake' ? 'Despierto' : 'Dormido'} desde: {statusStartTime}</p>
       )}
 
+      <p className="text-sm text-gray-500">Total dormido hoy: {totalSleepToday.toFixed(2)} horas</p>
+
       {/* Material UI Tabs for Feeding History and Configuration */}
       <Box sx={{ width: "100%", maxWidth: 500, mt: 1 }}>
         <Tabs value={value} onChange={handleTabChange} centered>
-          <Tab label="Comidas Historial" />
+          <Tab label="Comidas" />
+          <Tab label="Sueño" />
           <Tab label="Configuracion" />
         </Tabs>
 
@@ -182,11 +228,27 @@ export default function BabyStatusApp() {
           )}
 
           {value === 1 && (
+            <div>
+              <ul className="list-disc pl-6">
+                {sleepHistory.length > 0 ? (
+                  sleepHistory.slice(-5).reverse().map((entry, index) => (
+                    <li key={index} className="text-sm">
+                      {new Date(entry.start).toLocaleTimeString()} - {new Date(entry.end).toLocaleTimeString()}
+                    </li>
+                  ))
+                ) : (
+                  <p>No hay registros de sueño.</p>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {value === 2 && (
             <div className="flex flex-col items-center">
               <label>Intervalo comida (horas):</label>
               <div className="flex items-center gap-2 mt-1">
               <IconButton
-                onClick={() => updateFeedingInterval(feedingInterval - 1)}
+                onClick={() => updateFeedingInterval(feedingInterval - 0.5)}
                 disabled={feedingInterval <= 1}
                 sx={{
                 backgroundColor: 'red',
@@ -202,7 +264,7 @@ export default function BabyStatusApp() {
               </IconButton>
               <span>{feedingInterval} horas</span>
               <IconButton
-                onClick={() => updateFeedingInterval(feedingInterval + 1)}
+                onClick={() => updateFeedingInterval(feedingInterval + 0.5)}
                 sx={{
                 backgroundColor: 'green',
                 color: 'white',
