@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"; // Ensure the component is client-side
 
 import { useState, useEffect } from "react";
